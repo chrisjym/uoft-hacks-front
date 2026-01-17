@@ -6,6 +6,7 @@ import {
   validateAIResponse,
   applyAIChanges,
   generateMockAIResponse,
+  callAiBackend,
 } from "@/services/aiLayoutService";
 
 interface AIControllerState {
@@ -17,7 +18,7 @@ interface AIControllerState {
 
 export function useAILayoutController() {
   const { content, colorScheme, setColorScheme } = useContent();
-  const { components } = useLayoutState();
+  const { components, setComponents } = useLayoutState();
 
   const [state, setState] = useState<AIControllerState>({
     isProcessing: false,
@@ -25,79 +26,6 @@ export function useAILayoutController() {
     lastError: null,
     appliedChanges: [],
   });
-
-  /**
-   * Process a raw AI response (JSON string or object)
-   */
-  const processAIResponse = useCallback(
-    async (rawResponse: string | object) => {
-      setState((prev) => ({ ...prev, isProcessing: true, lastError: null }));
-
-      try {
-        // Parse if string
-        const parsed = typeof rawResponse === "string"
-          ? JSON.parse(rawResponse)
-          : rawResponse;
-
-        // Validate
-        if (!validateAIResponse(parsed)) {
-          throw new Error("Invalid AI response format");
-        }
-
-        const aiResponse = parsed as AILayoutResponse;
-
-        // Apply changes
-        const result = applyAIChanges(
-          components,
-          content,
-          colorScheme,
-          aiResponse
-        );
-
-        // Update color scheme if changed
-        if (result.colorScheme.id !== colorScheme.id) {
-          setColorScheme(result.colorScheme);
-        }
-
-        // Apply layout changes by simulating the actions
-        // Note: In a real implementation, you'd update the layout state directly
-        // For now, we log the changes that would be applied
-
-        setState({
-          isProcessing: false,
-          lastResponse: aiResponse,
-          lastError: null,
-          appliedChanges: result.appliedChanges,
-        });
-
-        return {
-          success: true,
-          appliedChanges: result.appliedChanges,
-          reason: aiResponse.reason,
-        };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        setState((prev) => ({
-          ...prev,
-          isProcessing: false,
-          lastError: errorMessage,
-        }));
-        return {
-          success: false,
-          error: errorMessage,
-        };
-      }
-    },
-    [components, content, colorScheme, setColorScheme]
-  );
-
-  /**
-   * Test with a mock AI response
-   */
-  const testWithMockResponse = useCallback(() => {
-    const mockResponse = generateMockAIResponse();
-    return processAIResponse(mockResponse);
-  }, [processAIResponse]);
 
   /**
    * Build the current state for sending to AI
@@ -124,8 +52,128 @@ export function useAILayoutController() {
     };
   }, [components, colorScheme, content]);
 
+  /**
+   * Call backend AI with a user prompt
+   */
+  const runAI = useCallback(
+    async (prompt: string) => {
+      setState((prev) => ({ ...prev, isProcessing: true, lastError: null }));
+
+      try {
+        const currentState = getCurrentStateForAI();
+
+        const aiResponse = await callAiBackend({
+          prompt,
+          innerHTML: JSON.stringify(currentState), // temporary payload shape
+        });
+
+        if (!validateAIResponse(aiResponse)) {
+          throw new Error("Invalid AI response format");
+        }
+
+        const result = applyAIChanges(components, content, colorScheme, aiResponse);
+
+        if (result.colorScheme.id !== colorScheme.id) {
+          setColorScheme(result.colorScheme);
+        }
+
+        // APPLY to UI
+        setComponents(result.components);
+
+        setState({
+          isProcessing: false,
+          lastResponse: aiResponse,
+          lastError: null,
+          appliedChanges: result.appliedChanges,
+        });
+
+        return {
+          success: true,
+          appliedChanges: result.appliedChanges,
+          reason: aiResponse.reason,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          lastError: errorMessage,
+        }));
+        return { success: false, error: errorMessage };
+      }
+    },
+    [
+      components,
+      content,
+      colorScheme,
+      setColorScheme,
+      setComponents,
+      getCurrentStateForAI,
+    ]
+  );
+
+  /**
+   * Process a raw AI response (JSON string or object)
+   * (kept for debugging / testing)
+   */
+  const processAIResponse = useCallback(
+    async (rawResponse: string | object) => {
+      setState((prev) => ({ ...prev, isProcessing: true, lastError: null }));
+
+      try {
+        const parsed = typeof rawResponse === "string" ? JSON.parse(rawResponse) : rawResponse;
+
+        if (!validateAIResponse(parsed)) {
+          throw new Error("Invalid AI response format");
+        }
+
+        const aiResponse = parsed as AILayoutResponse;
+
+        const result = applyAIChanges(components, content, colorScheme, aiResponse);
+
+        if (result.colorScheme.id !== colorScheme.id) {
+          setColorScheme(result.colorScheme);
+        }
+
+        // APPLY to UI (you were missing this)
+        setComponents(result.components);
+
+        setState({
+          isProcessing: false,
+          lastResponse: aiResponse,
+          lastError: null,
+          appliedChanges: result.appliedChanges,
+        });
+
+        return {
+          success: true,
+          appliedChanges: result.appliedChanges,
+          reason: aiResponse.reason,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        setState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          lastError: errorMessage,
+        }));
+        return { success: false, error: errorMessage };
+      }
+    },
+    [components, content, colorScheme, setColorScheme, setComponents]
+  );
+
+  /**
+   * Test with a mock AI response
+   */
+  const testWithMockResponse = useCallback(() => {
+    const mockResponse = generateMockAIResponse();
+    return processAIResponse(mockResponse);
+  }, [processAIResponse]);
+
   return {
     ...state,
+    runAI,
     processAIResponse,
     testWithMockResponse,
     getCurrentStateForAI,

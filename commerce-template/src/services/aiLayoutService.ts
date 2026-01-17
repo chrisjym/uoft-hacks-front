@@ -86,18 +86,23 @@ function applyChange(
       const index = components.findIndex((c) => c.id === change.component);
       if (index === -1) return components;
 
-      const newComponents = [...components];
-      const [removed] = newComponents.splice(index, 1);
+      const target = components[index];
+
+      let newRow = target.gridRow;
 
       if (change.position === "top") {
-        newComponents.unshift(removed);
+        newRow = 1;
       } else if (change.position === "bottom") {
-        newComponents.push(removed);
+        const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 1);
+        newRow = maxRow + 1;
       } else if (typeof change.position === "number") {
-        newComponents.splice(change.position, 0, removed);
+        // map "position index" to row number (simple mapping)
+        newRow = change.position + 1;
       }
 
-      return newComponents;
+      return components.map((c) =>
+        c.id === change.component ? { ...c, gridRow: newRow } : c
+      );
     }
 
     case "remove":
@@ -271,4 +276,40 @@ export function generateMockAIResponse(): AILayoutResponse {
       mode: "dark",
     },
   };
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+export async function callAiBackend(args: {
+  prompt: string;
+  innerHTML: string;
+}): Promise<AILayoutResponse> {
+  const res = await fetch(`${API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt: args.prompt,
+      innerHTML: args.innerHTML,
+    }),
+  });
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const err = await res.json();
+      if (err?.detail) detail = err.detail;
+    } catch {
+      // ignore
+    }
+    throw new Error(detail);
+  }
+
+  const data: unknown = await res.json();
+
+  if (!validateAIResponse(data)) {
+    console.error("[AI] Backend response did not match AILayoutResponse:", data);
+    throw new Error("Invalid AI response shape from backend");
+  }
+
+  return data;
 }

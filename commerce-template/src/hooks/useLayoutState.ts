@@ -53,6 +53,7 @@ export function useLayoutState() {
 
   // Save to localStorage whenever components change
   useEffect(() => {
+    console.log("[LayoutState] components updated:", components);
     const state: LayoutState = { components };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [components]);
@@ -194,7 +195,6 @@ export function useLayoutState() {
 
         if (!compA || !compB) return prev;
 
-        // Swap their grid positions
         return prev.map((c) => {
           if (c.id === componentIdA) {
             return {
@@ -231,21 +231,18 @@ export function useLayoutState() {
     localStorage.removeItem(EVENTS_KEY);
   }, []);
 
-  // Get visible components only
   const visibleComponents = components.filter((c) => c.visible);
-
-  // Get hidden components
   const hiddenComponents = components.filter((c) => !c.visible);
-
-  // Calculate the max row for grid height
   const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 1);
 
   return {
     components,
+    setComponents, 
     visibleComponents,
     hiddenComponents,
     events,
     maxRow,
+
     reorderComponents,
     moveComponent,
     resizeComponent,
