@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useContent } from "@/contexts/ContentContext";
-import { useLayoutState } from "@/hooks/useLayoutState";
+import { useLayout } from "@/contexts/LayoutContext";
 import {
   type AILayoutResponse,
   validateAIResponse,
@@ -18,7 +18,7 @@ interface AIControllerState {
 
 export function useAILayoutController() {
   const { content, colorScheme, setColorScheme } = useContent();
-  const { components, setComponents } = useLayoutState();
+  const { components, setComponents } = useLayout();
 
   const [state, setState] = useState<AIControllerState>({
     isProcessing: false,

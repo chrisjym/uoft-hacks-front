@@ -83,27 +83,32 @@ function applyChange(
 ): LayoutComponent[] {
   switch (change.type) {
     case "move": {
-      const index = components.findIndex((c) => c.id === change.component);
-      if (index === -1) return components;
+      const idx = components.findIndex((c) => c.id === change.component);
+      if (idx === -1) return components;
 
-      const target = components[index];
+      // Work on a copy
+      const updated = [...components];
 
-      let newRow = target.gridRow;
+      // Remove the target from list
+      const [target] = updated.splice(idx, 1);
 
-      if (change.position === "top") {
-        newRow = 1;
-      } else if (change.position === "bottom") {
-        const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 1);
-        newRow = maxRow + 1;
-      } else if (typeof change.position === "number") {
-        // map "position index" to row number (simple mapping)
-        newRow = change.position + 1;
-      }
+      // Decide insertion index
+      let insertAt = updated.length; // default bottom
+      if (change.position === "top") insertAt = 0;
+      else if (change.position === "bottom") insertAt = updated.length;
+      else if (typeof change.position === "number") insertAt = Math.max(0, Math.min(change.position, updated.length));
 
-      return components.map((c) =>
-        c.id === change.component ? { ...c, gridRow: newRow } : c
-      );
+      // Insert target in new position
+      updated.splice(insertAt, 0, target);
+
+      // Now NORMALIZE gridRow so render order changes visually
+      // Keep their gridColumn/gridSpan the same, only reorder rows
+      return updated.map((c, i) => ({
+        ...c,
+        gridRow: i + 1,
+      }));
     }
+
 
     case "remove":
     case "toggle_visibility": {

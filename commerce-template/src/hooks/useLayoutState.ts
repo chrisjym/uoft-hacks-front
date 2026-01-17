@@ -242,7 +242,6 @@ export function useLayoutState() {
     hiddenComponents,
     events,
     maxRow,
-
     reorderComponents,
     moveComponent,
     resizeComponent,

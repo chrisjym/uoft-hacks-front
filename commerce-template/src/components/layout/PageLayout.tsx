@@ -24,7 +24,7 @@ import {
   Testimonials,
   Footer,
 } from "@/components/commerce";
-import { useLayoutState } from "@/hooks/useLayoutState";
+import { useLayout } from "@/contexts/LayoutContext";
 import type { ComponentId } from "@/types";
 
 const COMPONENT_MAP: Record<ComponentId, React.ReactNode> = {
@@ -47,7 +47,7 @@ export function PageLayout() {
     resetLayout,
     maxRow,
     swapComponents,
-  } = useLayoutState();
+  } = useLayout();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -73,6 +73,17 @@ export function PageLayout() {
     if (a.gridRow !== b.gridRow) return a.gridRow - b.gridRow;
     return a.gridColumn - b.gridColumn;
   });
+
+  console.log(
+    "[PageLayout] sortedComponents:",
+    sortedComponents.map((c) => ({
+      id: c.id,
+      visible: c.visible,
+      row: c.gridRow,
+      col: c.gridColumn,
+      colSpan: c.gridColumnSpan,
+    }))
+  );
 
   return (
     <Box>
