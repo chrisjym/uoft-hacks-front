@@ -1,37 +1,49 @@
 import {
   Box,
   Text,
-  Container,
   SimpleGrid,
   Stack,
   Heading,
   Link,
   HStack,
 } from "@chakra-ui/react";
+import { useContent } from "@/contexts/ContentContext";
 
 const FOOTER_LINKS = {
-  Shop: ["All Products", "New Arrivals", "Best Sellers", "Sale"],
-  Support: ["Contact Us", "FAQs", "Shipping Info", "Returns"],
-  Company: ["About Us", "Careers", "Press", "Blog"],
-  Legal: ["Privacy Policy", "Terms of Service", "Cookie Policy"],
+  Shop: ["Products", "New", "Sale"],
+  Support: ["Contact", "FAQs", "Shipping"],
+  Company: ["About", "Careers", "Blog"],
+  Legal: ["Privacy", "Terms"],
 };
 
 export function Footer() {
+  const { colorScheme } = useContent();
+
   return (
-    <Box bg="gray.900" color="white" py={12}>
-      <Container maxW="container.xl">
-        <SimpleGrid columns={{ base: 2, md: 4 }} gap={8} mb={8}>
+    <Box py={{ base: 4, md: 6 }} h="full">
+      <Box
+        bg="rgba(15, 23, 42, 0.8)"
+        backdropFilter="blur(12px)"
+        color="white"
+        p={{ base: 4, md: 6 }}
+        borderRadius="2xl"
+        border="1px solid"
+        borderColor="rgba(71, 85, 105, 0.5)"
+        h="full"
+      >
+        <SimpleGrid columns={{ base: 2, md: 4 }} gap={4} mb={6}>
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
-            <Stack key={category} gap={3}>
-              <Heading size="sm" textTransform="uppercase" color="gray.400">
+            <Stack key={category} gap={2}>
+              <Heading size="xs" textTransform="uppercase" color="#64748b" letterSpacing="wider">
                 {category}
               </Heading>
               {links.map((link) => (
                 <Link
                   key={link}
-                  color="gray.300"
-                  _hover={{ color: "white" }}
-                  fontSize="sm"
+                  color="#94a3b8"
+                  _hover={{ color: colorScheme.accent }}
+                  fontSize="xs"
+                  transition="color 0.2s"
                 >
                   {link}
                 </Link>
@@ -40,39 +52,36 @@ export function Footer() {
           ))}
         </SimpleGrid>
 
-        <Box borderTop="1px solid" borderColor="gray.700" pt={8}>
+        <Box borderTop="1px solid" borderColor="rgba(71, 85, 105, 0.5)" pt={4}>
           <Stack
             direction={{ base: "column", md: "row" }}
             justify="space-between"
             align="center"
-            gap={4}
+            gap={3}
           >
             <HStack gap={2}>
-              <Text fontSize="2xl">🛒</Text>
-              <Text fontWeight="bold" fontSize="xl">
+              <Text fontSize="xl">🛒</Text>
+              <Text fontWeight="bold" fontSize="md" color="white">
                 CommerceApp
               </Text>
             </HStack>
-            <Text color="gray.400" fontSize="sm">
-              © 2025 CommerceApp. All rights reserved.
+            <Text color="#64748b" fontSize="xs">
+              © 2025 CommerceApp
             </Text>
-            <HStack gap={4}>
-              <Link fontSize="xl" _hover={{ color: "purple.400" }}>
+            <HStack gap={3}>
+              <Link fontSize="lg" _hover={{ color: colorScheme.accent }} transition="color 0.2s">
                 📘
               </Link>
-              <Link fontSize="xl" _hover={{ color: "purple.400" }}>
+              <Link fontSize="lg" _hover={{ color: colorScheme.accent }} transition="color 0.2s">
                 🐦
               </Link>
-              <Link fontSize="xl" _hover={{ color: "purple.400" }}>
+              <Link fontSize="lg" _hover={{ color: colorScheme.accent }} transition="color 0.2s">
                 📸
-              </Link>
-              <Link fontSize="xl" _hover={{ color: "purple.400" }}>
-                💼
               </Link>
             </HStack>
           </Stack>
         </Box>
-      </Container>
+      </Box>
     </Box>
   );
 }

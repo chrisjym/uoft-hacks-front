@@ -2,41 +2,42 @@ import {
   Box,
   Heading,
   Text,
-  Container,
   SimpleGrid,
   Stack,
   HStack,
 } from "@chakra-ui/react";
 import type { Testimonial } from "@/types";
+import { EditableText } from "@/components/ui/EditableText";
+import { useContent } from "@/contexts/ContentContext";
 
 const SAMPLE_TESTIMONIALS: Testimonial[] = [
   {
     id: "1",
-    name: "Sarah Johnson",
+    name: "Sarah J.",
     avatar: "👩",
     rating: 5,
-    text: "Amazing quality and super fast shipping! I've been a customer for 2 years and they never disappoint.",
+    text: "Amazing quality and super fast shipping!",
   },
   {
     id: "2",
-    name: "Mike Chen",
+    name: "Mike C.",
     avatar: "👨",
     rating: 5,
-    text: "The customer service is outstanding. They helped me find exactly what I was looking for.",
+    text: "Outstanding customer service.",
   },
   {
     id: "3",
-    name: "Emily Davis",
+    name: "Emily D.",
     avatar: "👩‍🦰",
     rating: 4,
-    text: "Great selection of products at competitive prices. My go-to store for all my tech needs.",
+    text: "Great selection at competitive prices.",
   },
   {
     id: "4",
-    name: "James Wilson",
+    name: "James W.",
     avatar: "🧔",
     rating: 5,
-    text: "Best online shopping experience I've had. The website is easy to use and checkout is seamless.",
+    text: "Best shopping experience I've had!",
   },
 ];
 
@@ -44,7 +45,7 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <HStack gap={0.5}>
       {[...Array(5)].map((_, i) => (
-        <Text key={i} color={i < rating ? "#fbbf24" : "#374151"} fontSize="sm">
+        <Text key={i} color={i < rating ? "#fbbf24" : "#374151"} fontSize="xs">
           ★
         </Text>
       ))}
@@ -58,39 +59,39 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
       bg="rgba(30, 41, 59, 0.5)"
       border="1px solid"
       borderColor="rgba(71, 85, 105, 0.5)"
-      borderRadius="2xl"
-      p={6}
+      borderRadius="xl"
+      p={4}
       backdropFilter="blur(12px)"
       transition="all 0.3s"
       _hover={{
-        transform: "translateY(-4px)",
+        transform: "translateY(-2px)",
         borderColor: "rgba(251, 191, 36, 0.3)",
       }}
     >
-      <Stack gap={4}>
+      <Stack gap={3}>
         <StarRating rating={testimonial.rating} />
-        <Text color="#cbd5e1" fontSize="sm" lineHeight="tall" fontStyle="italic">
+        <Text color="#cbd5e1" fontSize="xs" lineHeight="tall" fontStyle="italic" lineClamp={2}>
           "{testimonial.text}"
         </Text>
-        <HStack gap={3} pt={2} borderTop="1px solid" borderColor="rgba(71, 85, 105, 0.3)">
+        <HStack gap={2} pt={2} borderTop="1px solid" borderColor="rgba(71, 85, 105, 0.3)">
           <Box
-            w={10}
-            h={10}
+            w={8}
+            h={8}
             bg="rgba(15, 23, 42, 0.6)"
             borderRadius="full"
             display="flex"
             alignItems="center"
             justifyContent="center"
-            fontSize="xl"
+            fontSize="md"
           >
             {testimonial.avatar}
           </Box>
           <Box>
-            <Text fontWeight="semibold" color="white" fontSize="sm">
+            <Text fontWeight="semibold" color="white" fontSize="xs">
               {testimonial.name}
             </Text>
-            <Text fontSize="xs" color="#64748b">
-              Verified Customer
+            <Text fontSize="2xs" color="#64748b">
+              Verified
             </Text>
           </Box>
         </HStack>
@@ -100,55 +101,77 @@ function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
 }
 
 export function Testimonials() {
+  const { content, updateContent } = useContent();
+  const { testimonials } = content;
+
   return (
-    <Box py={{ base: 8, md: 12 }}>
-      <Container maxW="container.xl">
-        <Box
-          bg="rgba(30, 41, 59, 0.5)"
-          border="1px solid"
-          borderColor="rgba(71, 85, 105, 0.5)"
-          borderRadius="2xl"
-          p={{ base: 6, md: 10 }}
-          backdropFilter="blur(12px)"
-          shadow="xl"
-        >
-          <Stack gap={8}>
-            {/* Section Header */}
-            <Box textAlign="center">
-              <HStack justify="center" gap={2} mb={3}>
-                <Box
-                  px={3}
-                  py={1}
-                  bg="rgba(251, 191, 36, 0.2)"
-                  border="1px solid"
-                  borderColor="rgba(251, 191, 36, 0.3)"
-                  borderRadius="full"
+    <Box py={{ base: 4, md: 6 }} h="full">
+      <Box
+        bg="rgba(30, 41, 59, 0.5)"
+        border="1px solid"
+        borderColor="rgba(71, 85, 105, 0.5)"
+        borderRadius="2xl"
+        p={{ base: 4, md: 6 }}
+        backdropFilter="blur(12px)"
+        shadow="xl"
+        h="full"
+      >
+        <Stack gap={4} h="full">
+          {/* Section Header */}
+          <Box textAlign="center">
+            <HStack justify="center" gap={2} mb={2}>
+              <Box
+                px={2}
+                py={0.5}
+                bg="rgba(251, 191, 36, 0.2)"
+                border="1px solid"
+                borderColor="rgba(251, 191, 36, 0.3)"
+                borderRadius="full"
+                fontSize="xs"
+                fontWeight="bold"
+                color="#fbbf24"
+                textTransform="uppercase"
+                letterSpacing="wider"
+              >
+                <EditableText
+                  value={testimonials.badge}
+                  onSave={(v) => updateContent("testimonials", "badge", v)}
                   fontSize="xs"
                   fontWeight="bold"
                   color="#fbbf24"
                   textTransform="uppercase"
                   letterSpacing="wider"
-                >
-                  Testimonials
-                </Box>
-              </HStack>
-              <Heading size="2xl" color="white" fontWeight="bold" mb={3}>
-                What Our Customers Say
-              </Heading>
-              <Text color="#64748b" fontSize="md">
-                Don't just take our word for it — hear from our happy customers
-              </Text>
-            </Box>
+                />
+              </Box>
+            </HStack>
+            <Heading size="lg" color="white" fontWeight="bold" mb={2}>
+              <EditableText
+                value={testimonials.heading}
+                onSave={(v) => updateContent("testimonials", "heading", v)}
+                fontWeight="bold"
+                color="white"
+                textAlign="center"
+              />
+            </Heading>
+            <Text color="#64748b" fontSize="sm">
+              <EditableText
+                value={testimonials.subheading}
+                onSave={(v) => updateContent("testimonials", "subheading", v)}
+                fontSize="sm"
+                color="#64748b"
+                textAlign="center"
+              />
+            </Text>
+          </Box>
 
-            {/* Testimonials Grid */}
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={6}>
-              {SAMPLE_TESTIMONIALS.map((testimonial) => (
-                <TestimonialCard key={testimonial.id} testimonial={testimonial} />
-              ))}
-            </SimpleGrid>
-          </Stack>
-        </Box>
-      </Container>
+          {/* Testimonials Grid */}
+          <SimpleGrid columns={{ base: 1, sm: 2, lg: 4 }} gap={3} flex={1}>
+            {SAMPLE_TESTIMONIALS.map((testimonial) => (
+              <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+            ))}
+          </SimpleGrid>
+        </Stack>
+      </Box>
     </Box>
   );
 }

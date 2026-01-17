@@ -2,6 +2,7 @@ import { Box, IconButton, HStack, Text } from "@chakra-ui/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ComponentId } from "@/types";
+import { useContent } from "@/contexts/ContentContext";
 
 interface DraggableSectionProps {
   id: ComponentId;
@@ -24,6 +25,7 @@ export function DraggableSection({
   onRemove,
   isEditMode,
 }: DraggableSectionProps) {
+  const { colorScheme } = useContent();
   const {
     attributes,
     listeners,
@@ -48,10 +50,14 @@ export function DraggableSection({
       style={style}
       position="relative"
       opacity={isDragging ? 0.5 : 1}
-      outline={isEditMode ? "2px dashed" : "none"}
-      outlineColor="purple.300"
+      outline="2px dashed"
+      outlineColor={colorScheme.primaryBorder}
       outlineOffset="4px"
-      borderRadius="md"
+      borderRadius="2xl"
+      transition="all 0.2s"
+      _hover={{
+        outlineColor: colorScheme.accent,
+      }}
     >
       {/* Edit mode toolbar */}
       <HStack
@@ -64,14 +70,20 @@ export function DraggableSection({
         zIndex={10}
       >
         <HStack
-          bg="purple.600"
+          bg={colorScheme.primary}
           color="white"
-          px={3}
-          py={1}
+          px={4}
+          py={1.5}
           borderRadius="full"
           fontSize="xs"
           fontWeight="bold"
           cursor="grab"
+          shadow="lg"
+          transition="all 0.2s"
+          _hover={{
+            bg: colorScheme.primaryHover,
+            transform: "translateY(-2px)",
+          }}
           {...attributes}
           {...listeners}
         >
@@ -81,9 +93,15 @@ export function DraggableSection({
         <IconButton
           aria-label="Remove section"
           size="xs"
-          colorPalette="red"
+          bg="#ef4444"
+          color="white"
           borderRadius="full"
           onClick={() => onRemove(id)}
+          _hover={{
+            bg: "#dc2626",
+            transform: "scale(1.1)",
+          }}
+          transition="all 0.2s"
         >
           ✕
         </IconButton>

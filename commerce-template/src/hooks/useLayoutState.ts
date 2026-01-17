@@ -6,15 +6,16 @@ import type {
   ComponentActionEvent,
 } from "@/types";
 
-const STORAGE_KEY = "commerce-layout-state";
+const STORAGE_KEY = "commerce-layout-state-v2";
 const EVENTS_KEY = "commerce-layout-events";
 
+// Default grid layout - 12 column grid
 const DEFAULT_LAYOUT: LayoutComponent[] = [
-  { id: "hero", visible: true },
-  { id: "featured-products", visible: true },
-  { id: "newsletter", visible: true },
-  { id: "testimonials", visible: true },
-  { id: "footer", visible: true },
+  { id: "hero", visible: true, gridColumn: 1, gridColumnSpan: 12, gridRow: 1, gridRowSpan: 1 },
+  { id: "featured-products", visible: true, gridColumn: 1, gridColumnSpan: 8, gridRow: 2, gridRowSpan: 1 },
+  { id: "newsletter", visible: true, gridColumn: 9, gridColumnSpan: 4, gridRow: 2, gridRowSpan: 1 },
+  { id: "testimonials", visible: true, gridColumn: 1, gridColumnSpan: 12, gridRow: 3, gridRowSpan: 1 },
+  { id: "footer", visible: true, gridColumn: 1, gridColumnSpan: 12, gridRow: 4, gridRowSpan: 1 },
 ];
 
 export function useLayoutState() {
@@ -23,7 +24,14 @@ export function useLayoutState() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed: LayoutState = JSON.parse(saved);
-        return parsed.components;
+        // Ensure all components have grid properties (migration)
+        return parsed.components.map((c) => ({
+          ...c,
+          gridColumn: c.gridColumn ?? 1,
+          gridColumnSpan: c.gridColumnSpan ?? 12,
+          gridRow: c.gridRow ?? 1,
+          gridRowSpan: c.gridRowSpan ?? 1,
+        }));
       }
     } catch (e) {
       console.error("Failed to load layout state:", e);
@@ -59,51 +67,111 @@ export function useLayoutState() {
     (
       action: ComponentActionEvent["action"],
       componentId: ComponentId,
-      oldIndex?: number,
-      newIndex?: number
+      oldPosition?: { column: number; row: number },
+      newPosition?: { column: number; row: number }
     ) => {
       const event: ComponentActionEvent = {
         action,
         componentId,
-        oldIndex,
-        newIndex,
+        oldPosition,
+        newPosition,
         timestamp: Date.now(),
       };
 
-      // Log to console for AI consumption
       console.log("[Layout Event]", event);
-
-      setEvents((prev) => [...prev.slice(-99), event]); // Keep last 100 events
+      setEvents((prev) => [...prev.slice(-99), event]);
     },
     []
   );
 
-  // Reorder components after drag
+  // Move component to a new grid position
+  const moveComponent = useCallback(
+    (componentId: ComponentId, gridColumn: number, gridRow: number) => {
+      setComponents((prev) => {
+        const component = prev.find((c) => c.id === componentId);
+        if (!component) return prev;
+
+        const oldPosition = { column: component.gridColumn, row: component.gridRow };
+        const newPosition = { column: gridColumn, row: gridRow };
+
+        trackEvent("move", componentId, oldPosition, newPosition);
+
+        return prev.map((c) =>
+          c.id === componentId ? { ...c, gridColumn, gridRow } : c
+        );
+      });
+    },
+    [trackEvent]
+  );
+
+  // Resize component (change column span)
+  const resizeComponent = useCallback(
+    (componentId: ComponentId, gridColumnSpan: number, gridRowSpan?: number) => {
+      setComponents((prev) => {
+        const component = prev.find((c) => c.id === componentId);
+        if (!component) return prev;
+
+        trackEvent("resize", componentId);
+
+        return prev.map((c) =>
+          c.id === componentId
+            ? {
+                ...c,
+                gridColumnSpan: Math.min(Math.max(gridColumnSpan, 1), 12),
+                gridRowSpan: gridRowSpan ?? c.gridRowSpan,
+              }
+            : c
+        );
+      });
+    },
+    [trackEvent]
+  );
+
+  // Update component grid position and size in one operation
+  const updateComponentGrid = useCallback(
+    (
+      componentId: ComponentId,
+      updates: Partial<Pick<LayoutComponent, "gridColumn" | "gridColumnSpan" | "gridRow" | "gridRowSpan">>
+    ) => {
+      setComponents((prev) =>
+        prev.map((c) =>
+          c.id === componentId
+            ? {
+                ...c,
+                gridColumn: updates.gridColumn ?? c.gridColumn,
+                gridColumnSpan: Math.min(Math.max(updates.gridColumnSpan ?? c.gridColumnSpan, 1), 12),
+                gridRow: updates.gridRow ?? c.gridRow,
+                gridRowSpan: updates.gridRowSpan ?? c.gridRowSpan,
+              }
+            : c
+        )
+      );
+    },
+    []
+  );
+
+  // Legacy reorder (for compatibility)
   const reorderComponents = useCallback(
     (oldIndex: number, newIndex: number) => {
       setComponents((prev) => {
         const newComponents = [...prev];
         const [removed] = newComponents.splice(oldIndex, 1);
         newComponents.splice(newIndex, 0, removed);
-
-        trackEvent("drag", removed.id, oldIndex, newIndex);
-
         return newComponents;
       });
     },
-    [trackEvent]
+    []
   );
 
   // Remove a component (set visible to false)
   const removeComponent = useCallback(
     (componentId: ComponentId) => {
-      const index = components.findIndex((c) => c.id === componentId);
       setComponents((prev) =>
         prev.map((c) => (c.id === componentId ? { ...c, visible: false } : c))
       );
-      trackEvent("remove", componentId, index);
+      trackEvent("remove", componentId);
     },
-    [components, trackEvent]
+    [trackEvent]
   );
 
   // Restore a component
@@ -113,6 +181,44 @@ export function useLayoutState() {
         prev.map((c) => (c.id === componentId ? { ...c, visible: true } : c))
       );
       trackEvent("restore", componentId);
+    },
+    [trackEvent]
+  );
+
+  // Swap grid positions between two components
+  const swapComponents = useCallback(
+    (componentIdA: ComponentId, componentIdB: ComponentId) => {
+      setComponents((prev) => {
+        const compA = prev.find((c) => c.id === componentIdA);
+        const compB = prev.find((c) => c.id === componentIdB);
+
+        if (!compA || !compB) return prev;
+
+        // Swap their grid positions
+        return prev.map((c) => {
+          if (c.id === componentIdA) {
+            return {
+              ...c,
+              gridColumn: compB.gridColumn,
+              gridColumnSpan: compB.gridColumnSpan,
+              gridRow: compB.gridRow,
+              gridRowSpan: compB.gridRowSpan,
+            };
+          }
+          if (c.id === componentIdB) {
+            return {
+              ...c,
+              gridColumn: compA.gridColumn,
+              gridColumnSpan: compA.gridColumnSpan,
+              gridRow: compA.gridRow,
+              gridRowSpan: compA.gridRowSpan,
+            };
+          }
+          return c;
+        });
+      });
+
+      trackEvent("drag", componentIdA);
     },
     [trackEvent]
   );
@@ -131,12 +237,20 @@ export function useLayoutState() {
   // Get hidden components
   const hiddenComponents = components.filter((c) => !c.visible);
 
+  // Calculate the max row for grid height
+  const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 1);
+
   return {
     components,
     visibleComponents,
     hiddenComponents,
     events,
+    maxRow,
     reorderComponents,
+    moveComponent,
+    resizeComponent,
+    updateComponentGrid,
+    swapComponents,
     removeComponent,
     restoreComponent,
     resetLayout,

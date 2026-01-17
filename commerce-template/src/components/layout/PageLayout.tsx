@@ -1,4 +1,5 @@
-import { Box } from "@chakra-ui/react";
+import { Box, Container } from "@chakra-ui/react";
+import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -11,11 +12,10 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useState } from "react";
 
-import { DraggableSection } from "./DraggableSection";
+import { GridSection } from "./GridSection";
 import { EditToolbar } from "./EditToolbar";
 import {
   Hero,
@@ -41,10 +41,12 @@ export function PageLayout() {
   const {
     visibleComponents,
     hiddenComponents,
-    reorderComponents,
+    resizeComponent,
     removeComponent,
     restoreComponent,
     resetLayout,
+    maxRow,
+    swapComponents,
   } = useLayoutState();
 
   const sensors = useSensors(
@@ -62,37 +64,51 @@ export function PageLayout() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = visibleComponents.findIndex((c) => c.id === active.id);
-      const newIndex = visibleComponents.findIndex((c) => c.id === over.id);
-      reorderComponents(oldIndex, newIndex);
+      swapComponents(active.id as ComponentId, over.id as ComponentId);
     }
   };
 
+  // Sort by row then column for proper rendering order
+  const sortedComponents = [...visibleComponents].sort((a, b) => {
+    if (a.gridRow !== b.gridRow) return a.gridRow - b.gridRow;
+    return a.gridColumn - b.gridColumn;
+  });
+
   return (
     <Box>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={visibleComponents.map((c) => c.id)}
-          strategy={verticalListSortingStrategy}
+      <Container maxW="container.xl" px={{ base: 4, md: 6 }}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          <Box pt={isEditMode ? 12 : 0}>
-            {visibleComponents.map((component) => (
-              <DraggableSection
-                key={component.id}
-                id={component.id}
-                onRemove={removeComponent}
-                isEditMode={isEditMode}
-              >
-                {COMPONENT_MAP[component.id]}
-              </DraggableSection>
-            ))}
-          </Box>
-        </SortableContext>
-      </DndContext>
+          <SortableContext
+            items={sortedComponents.map((c) => c.id)}
+            strategy={rectSortingStrategy}
+          >
+            <Box
+              display="grid"
+              gridTemplateColumns="repeat(12, 1fr)"
+              gridTemplateRows={`repeat(${maxRow}, auto)`}
+              gap={4}
+              pt={isEditMode ? 16 : 4}
+              pb={24}
+            >
+              {sortedComponents.map((component) => (
+                <GridSection
+                  key={component.id}
+                  component={component}
+                  onRemove={removeComponent}
+                  onResize={resizeComponent}
+                  isEditMode={isEditMode}
+                >
+                  {COMPONENT_MAP[component.id]}
+                </GridSection>
+              ))}
+            </Box>
+          </SortableContext>
+        </DndContext>
+      </Container>
 
       <EditToolbar
         isEditMode={isEditMode}
