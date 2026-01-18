@@ -78,84 +78,117 @@ export function validateAIResponse(response: unknown): response is AILayoutRespo
  * Applies a single change action to the layout
  */
 function applyChange(
-  components: LayoutComponent[],
-  change: ChangeAction
-): LayoutComponent[] {
-  switch (change.type) {
-    case "move": {
-      const idx = components.findIndex((c) => c.id === change.component);
-      if (idx === -1) return components;
+    components: LayoutComponent[],
+    change: ChangeAction
+  ): LayoutComponent[] {
+    switch (change.type) {
+      case "move": {
+        // We interpret moves as SLOT-SWAPS to preserve the layout structure.
+        // Slots (index):
+        // 0 = hero (row1 full)
+        // 1 = featured-products (row2 left wide)
+        // 2 = newsletter (row2 right narrow)
+        // 3 = testimonials (row3 full)
+        // 4 = footer (row4 full)
 
-      // Work on a copy
-      const updated = [...components];
+        const SLOT_COUNT = 5;
 
-      // Remove the target from list
-      const [target] = updated.splice(idx, 1);
+        const clampSlot = (n: number) => Math.max(0, Math.min(n, SLOT_COUNT - 1));
 
-      // Decide insertion index
-      let insertAt = updated.length; // default bottom
-      if (change.position === "top") insertAt = 0;
-      else if (change.position === "bottom") insertAt = updated.length;
-      else if (typeof change.position === "number") insertAt = Math.max(0, Math.min(change.position, updated.length));
+        const desiredSlot =
+          change.position === "top"
+            ? 0
+            : change.position === "bottom"
+              ? 4
+              : typeof change.position === "number"
+                ? clampSlot(change.position)
+                : 4;
 
-      // Insert target in new position
-      updated.splice(insertAt, 0, target);
+        // Build a "slot order" of the currently visible components.
+        // If the array order isn't stable, we sort by gridRow then gridColumn (like PageLayout does).
+        const ordered = [...components].sort((a, b) => {
+          if (a.gridRow !== b.gridRow) return a.gridRow - b.gridRow;
+          return a.gridColumn - b.gridColumn;
+        });
 
-      // Now NORMALIZE gridRow so render order changes visually
-      // Keep their gridColumn/gridSpan the same, only reorder rows
-      return updated.map((c, i) => ({
-        ...c,
-        gridRow: i + 1,
-      }));
-    }
+        const fromIndex = ordered.findIndex((c) => c.id === change.component);
+        if (fromIndex === -1) return components;
 
+        // Swap in the ORDERED list
+        const toIndex = desiredSlot;
 
-    case "remove":
-    case "toggle_visibility": {
-      return components.map((c) =>
-        c.id === change.component
-          ? { ...c, visible: change.type === "toggle_visibility" ? change.visible : false }
-          : c
-      );
-    }
+        const swapped = [...ordered];
+        const temp = swapped[fromIndex];
+        swapped[fromIndex] = swapped[toIndex];
+        swapped[toIndex] = temp;
 
-    case "add": {
-      // Only add if component type is valid and not already present
-      const validIds: ComponentId[] = ["hero", "featured-products", "testimonials", "newsletter", "footer"];
-      const componentId = change.component as ComponentId;
+        // Now re-apply canonical grid positions for each slot to keep the nice layout shape.
+        const canonicalize = (slotIndex: number, c: LayoutComponent): LayoutComponent => {
+          switch (slotIndex) {
+            case 0: // hero
+              return { ...c, gridRow: 1, gridColumn: 1, gridColumnSpan: 12, gridRowSpan: 1 };
+            case 1: // featured-products (row2-left)
+              return { ...c, gridRow: 2, gridColumn: 1, gridColumnSpan: 8, gridRowSpan: 1 };
+            case 2: // newsletter (row2-right)
+              return { ...c, gridRow: 2, gridColumn: 9, gridColumnSpan: 4, gridRowSpan: 1 };
+            case 3: // testimonials
+              return { ...c, gridRow: 3, gridColumn: 1, gridColumnSpan: 12, gridRowSpan: 1 };
+            case 4: // footer
+              return { ...c, gridRow: 4, gridColumn: 1, gridColumnSpan: 12, gridRowSpan: 1 };
+            default:
+              return c;
+          }
+        };
 
-      if (!validIds.includes(componentId)) {
-        console.warn(`[AI Layout] Unknown component type: ${change.component}`);
-        return components;
+        const normalized = swapped.map((c, idx) => canonicalize(idx, c));
+
+        // Preserve visibility flags, etc. Also preserve any hidden components not in ordered list (rare).
+        // Since your layout always has exactly 5 components, normalized covers all of them.
+        return normalized;
       }
 
-      const exists = components.some((c) => c.id === componentId);
-      if (exists) {
-        // If it exists but is hidden, make it visible
+      case "remove":
+      case "toggle_visibility": {
         return components.map((c) =>
-          c.id === componentId ? { ...c, visible: true } : c
+          c.id === change.component
+            ? { ...c, visible: change.type === "toggle_visibility" ? change.visible : false }
+            : c
         );
       }
 
-      // Calculate next row position
-      const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 0);
+      case "add": {
+        const validIds: ComponentId[] = ["hero", "featured-products", "testimonials", "newsletter", "footer"];
+        const componentId = change.component as ComponentId;
 
-      // Add new component at the end with default grid position
-      const newComponent: LayoutComponent = {
-        id: componentId,
-        visible: true,
-        gridColumn: 1,
-        gridColumnSpan: 12,
-        gridRow: maxRow + 1,
-        gridRowSpan: 1,
-      };
-      return [...components, newComponent];
+        if (!validIds.includes(componentId)) {
+          console.warn(`[AI Layout] Unknown component type: ${change.component}`);
+          return components;
+        }
+
+        const exists = components.some((c) => c.id === componentId);
+        if (exists) {
+          return components.map((c) =>
+            c.id === componentId ? { ...c, visible: true } : c
+          );
+        }
+
+        const maxRow = Math.max(...components.map((c) => c.gridRow + c.gridRowSpan - 1), 0);
+
+        const newComponent: LayoutComponent = {
+          id: componentId,
+          visible: true,
+          gridColumn: 1,
+          gridColumnSpan: 12,
+          gridRow: maxRow + 1,
+          gridRowSpan: 1,
+        };
+        return [...components, newComponent];
+      }
+
+      default:
+        return components;
     }
-
-    default:
-      return components;
   }
-}
 
 /**
  * Applies content updates from AI response

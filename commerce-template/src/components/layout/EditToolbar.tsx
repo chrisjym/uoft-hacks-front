@@ -38,7 +38,7 @@ export function EditToolbar({
   onResetLayout,
 }: EditToolbarProps) {
   const { colorScheme, setColorScheme, resetContent, setIsEditMode } = useContent();
-  const { isProcessing, processAIResponse, testWithMockResponse, getCurrentStateForAI, appliedChanges } = useAILayoutController();
+  const { isProcessing, runAI, testWithMockResponse, getCurrentStateForAI, appliedChanges } = useAILayoutController();
 
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [aiInput, setAIInput] = useState("");
@@ -57,7 +57,7 @@ export function EditToolbar({
   const handleApplyAI = async () => {
     if (!aiInput.trim()) return;
 
-    const result = await processAIResponse(aiInput);
+    const result = await runAI(aiInput);
     if (result.success) {
       setAIResult(`Applied: ${result.appliedChanges?.join(", ") || "No changes"}`);
       setAIInput("");
@@ -118,7 +118,7 @@ export function EditToolbar({
             <Textarea
               value={aiInput}
               onChange={(e) => setAIInput(e.target.value)}
-              placeholder='Paste AI JSON response here...&#10;{"reason": "...", "changes": [...], "theme": {...}}'
+              placeholder="Enter your prompt here...&#10;e.g., 'Move the hero section to the bottom' or 'Hide the testimonials section'"
               bg="rgba(0, 0, 0, 0.3)"
               border="1px solid"
               borderColor="rgba(71, 85, 105, 0.5)"
